@@ -5,7 +5,7 @@ Referenz: `anamnese_fragebogen_spec.md` (Spezifikation)
 ## Fortschritt
 
 - [x] **Schritt 1:** Grundgerüst und Deployment
-- [ ] **Schritt 2:** Wizard und Navigation
+- [x] **Schritt 2:** Wizard und Navigation
 - [ ] **Schritt 3:** Fragen und Logik
 - [ ] **Schritt 4:** Übersicht, PDF und Abschluss
 

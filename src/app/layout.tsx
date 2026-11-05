@@ -11,7 +11,7 @@ const geistSans = Geist({
 });
 
 export const metadata: Metadata = {
-  title: "Anamnese Hundetraining",
+  title: "Anamnese Fragebogen",
   description:
     "Digitaler Anamnese-Fragebogen vor dem Erstgespräch beim Hundetraining.",
 };

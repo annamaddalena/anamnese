@@ -13,6 +13,7 @@ const config: Config = {
       },
       maxWidth: {
         content: "45rem",
+        layout: "80rem",
       },
       fontFamily: {
         sans: ["var(--font-geist-sans)", "system-ui", "sans-serif"],
