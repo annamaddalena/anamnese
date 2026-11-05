@@ -9,19 +9,21 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { applyDerivedAnswers } from "@/lib/behavior-path";
+import { cleanupStaleBehaviorAnswers } from "@/lib/behavior-details";
 import {
   clearPersistedState,
   createEmptyState,
   readPersistedState,
   writePersistedState,
 } from "@/lib/storage";
-import type { AnswersRecord } from "@/types/questionnaire";
+import type { AnswerValue, AnswersRecord } from "@/types/questionnaire";
 
 type QuestionnaireContextValue = {
   hydrated: boolean;
   answers: AnswersRecord;
   maxStepIndex: number;
-  setAnswer: (fieldId: string, value: string) => void;
+  setFieldValue: (fieldId: string, value: AnswerValue) => void;
   registerStepVisit: (stepIndex: number) => void;
   resetQuestionnaire: () => void;
 };
@@ -38,7 +40,9 @@ export function QuestionnaireProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const stored = readPersistedState();
     if (stored) {
-      setAnswers(stored.answers);
+      setAnswers(
+        applyDerivedAnswers(cleanupStaleBehaviorAnswers(stored.answers)),
+      );
       setMaxStepIndex(stored.maxStepIndex);
     }
     setHydrated(true);
@@ -50,13 +54,20 @@ export function QuestionnaireProvider({ children }: { children: ReactNode }) {
     }
     writePersistedState({
       version: 1,
-      answers,
+      answers: applyDerivedAnswers(answers),
       maxStepIndex,
     });
   }, [answers, maxStepIndex, hydrated]);
 
-  const setAnswer = useCallback((fieldId: string, value: string) => {
-    setAnswers((prev) => ({ ...prev, [fieldId]: value }));
+  const setFieldValue = useCallback((fieldId: string, value: AnswerValue) => {
+    setAnswers((prev) =>
+      applyDerivedAnswers(
+        cleanupStaleBehaviorAnswers({
+          ...prev,
+          [fieldId]: value,
+        }),
+      ),
+    );
   }, []);
 
   const registerStepVisit = useCallback((stepIndex: number) => {
@@ -75,7 +86,7 @@ export function QuestionnaireProvider({ children }: { children: ReactNode }) {
       hydrated,
       answers,
       maxStepIndex,
-      setAnswer,
+      setFieldValue,
       registerStepVisit,
       resetQuestionnaire,
     }),
@@ -83,7 +94,7 @@ export function QuestionnaireProvider({ children }: { children: ReactNode }) {
       hydrated,
       answers,
       maxStepIndex,
-      setAnswer,
+      setFieldValue,
       registerStepVisit,
       resetQuestionnaire,
     ],

@@ -7,6 +7,13 @@ Web-App für den digitalen Anamnese-Fragebogen vor dem Erstgespräch (Next.js, T
 - Node.js 20.x oder neuer
 - npm
 
+## Demo-Modus
+
+In `src/config/app.ts` steuert `DEMO_MODE`:
+
+- `true` (Standard zum Testen): Keine Pflichtfeld-Validierung, du kannst leer durchklicken.
+- `false`: Pflichtfelder und Fehlermeldungen wie für echte Kund:innen.
+
 ## Lokal starten
 
 ```bash

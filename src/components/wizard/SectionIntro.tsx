@@ -21,7 +21,11 @@ export function SectionIntro({
       >
         {title}
       </h1>
-      <p className="mt-4 text-base leading-relaxed text-earth-brown">{intro}</p>
+      {intro.trim() ? (
+        <p className="mt-4 text-base leading-relaxed text-earth-brown">
+          {intro}
+        </p>
+      ) : null}
     </header>
   );
 }

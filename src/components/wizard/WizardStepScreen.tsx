@@ -1,10 +1,15 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { FieldRenderer } from "@/components/fields/FieldRenderer";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { getSectionByIndex, getSectionIndex } from "@/config/questionnaire";
 import { useQuestionnaire } from "@/context/QuestionnaireContext";
+import {
+  hasValidationErrors,
+  validateSection,
+} from "@/lib/validation";
 import {
   getNextSectionSlug,
   getPrevSectionSlug,
@@ -23,8 +28,9 @@ type WizardStepScreenProps = {
 
 export function WizardStepScreen({ section }: WizardStepScreenProps) {
   const router = useRouter();
-  const { hydrated, answers, maxStepIndex, setAnswer, registerStepVisit } =
+  const { hydrated, answers, maxStepIndex, setFieldValue, registerStepVisit } =
     useQuestionnaire();
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const stepIndex = getSectionIndex(section.slug);
   const headingId = `section-heading-${section.slug}`;
   const stepNumber = stepIndex + 1;
@@ -49,13 +55,31 @@ export function WizardStepScreen({ section }: WizardStepScreenProps) {
     heading?.focus({ preventScroll: true });
   }, [section.slug, headingId]);
 
-  const prevSlug = getPrevSectionSlug(section.slug);
-  const nextSlug = getNextSectionSlug(section.slug);
-  const backHref = prevSlug ? sectionPath(prevSlug) : null;
-  const nextHref = nextSlug ? sectionPath(nextSlug) : overviewPath();
-  const isLastStep = stepIndex === 4;
+  useEffect(() => {
+    setErrors({});
+  }, [section.slug]);
 
-  const fieldValue = answers[section.placeholderFieldId] ?? "";
+  const prevSlug = getPrevSectionSlug(section.slug);
+  const backHref = prevSlug ? sectionPath(prevSlug) : null;
+  const isLastStep = stepIndex === 4;
+  function handleNext() {
+    const nextErrors = validateSection(section, answers);
+    setErrors(nextErrors);
+    if (hasValidationErrors(nextErrors)) {
+      const firstId = Object.keys(nextErrors)[0];
+      document.getElementById(firstId)?.focus();
+      return;
+    }
+
+    if (isLastStep) {
+      router.push(overviewPath());
+      return;
+    }
+    const nextSlug = getNextSectionSlug(section.slug);
+    if (nextSlug) {
+      router.push(sectionPath(nextSlug));
+    }
+  }
 
   return (
     <main className="flex flex-1 flex-col">
@@ -92,34 +116,23 @@ export function WizardStepScreen({ section }: WizardStepScreenProps) {
                 Formular wird geladen …
               </p>
             ) : (
-              <div className="mt-6 max-w-3xl space-y-2">
-                <label
-                  htmlFor={section.placeholderFieldId}
-                  className="block text-sm font-medium text-earth-brown"
-                >
-                  {section.placeholderLabel}
-                </label>
-                <input
-                  id={section.placeholderFieldId}
-                  type="text"
-                  value={fieldValue}
-                  onChange={(e) =>
-                    setAnswer(section.placeholderFieldId, e.target.value)
-                  }
-                  className="w-full rounded-xl border border-warm-cream bg-pure-white px-4 py-3 text-earth-brown placeholder:text-earth-brown/40 focus-visible:border-deep-forest focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-deep-forest/20"
-                  placeholder="Platzhalter bis Schritt 3"
-                />
-                <p className="text-sm text-earth-brown/70">
-                  Echte Fragen kommen im nächsten Schritt. Deine Eingaben
-                  werden automatisch auf diesem Gerät gespeichert.
-                </p>
+              <div className="mt-6 max-w-3xl space-y-8">
+                {section.fields.map((field) => (
+                  <FieldRenderer
+                    key={field.id}
+                    field={field}
+                    answers={answers}
+                    errors={errors}
+                    onChange={setFieldValue}
+                  />
+                ))}
               </div>
             )}
 
             <WizardNav
               backHref={backHref}
-              nextHref={isLastStep ? overviewPath() : nextHref}
               nextLabel={isLastStep ? "Zur Übersicht" : "Weiter"}
+              onNext={handleNext}
             />
           </div>
         </div>

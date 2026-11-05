@@ -1,18 +1,17 @@
 import Link from "next/link";
-import { overviewPath } from "@/lib/wizard-navigation";
 
 type WizardNavProps = {
   backHref: string | null;
   backLabel?: string;
-  nextHref: string | null;
   nextLabel: string;
+  onNext: () => void;
 };
 
 export function WizardNav({
   backHref,
   backLabel = "Zurück",
-  nextHref,
   nextLabel,
+  onNext,
 }: WizardNavProps) {
   return (
     <div className="mt-8 flex flex-col-reverse gap-3 border-t border-warm-cream pt-6 sm:flex-row sm:items-center sm:justify-between">
@@ -30,21 +29,13 @@ export function WizardNav({
           </span>
         )}
       </div>
-      {nextHref ? (
-        <Link
-          href={nextHref}
-          className="inline-flex min-h-12 items-center justify-center rounded-xl bg-deep-forest px-6 py-3 text-base font-medium text-pure-white shadow-sm transition-colors hover:bg-deep-forest/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-deep-forest"
-        >
-          {nextLabel}
-        </Link>
-      ) : (
-        <Link
-          href={overviewPath()}
-          className="inline-flex min-h-12 items-center justify-center rounded-xl bg-deep-forest px-6 py-3 text-base font-medium text-pure-white shadow-sm transition-colors hover:bg-deep-forest/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-deep-forest"
-        >
-          {nextLabel}
-        </Link>
-      )}
+      <button
+        type="button"
+        onClick={onNext}
+        className="inline-flex min-h-12 items-center justify-center rounded-xl bg-deep-forest px-6 py-3 text-base font-medium text-pure-white shadow-sm transition-colors hover:bg-deep-forest/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-deep-forest"
+      >
+        {nextLabel}
+      </button>
     </div>
   );
 }
