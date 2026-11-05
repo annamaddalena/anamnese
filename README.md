@@ -42,6 +42,7 @@ npm start
 4. Deploy — keine Umgebungsvariablen nötig für Schritt 1.
 
 Nach dem Deploy steht die App unter der von Vercel vergebenen URL bereit.
+Deployment limitiert wegen Vercel free Plan.
 
 ## Projektplan
 
