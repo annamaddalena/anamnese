@@ -7,6 +7,10 @@ Web-App für den digitalen Anamnese-Fragebogen vor dem Erstgespräch (Next.js, T
 - Node.js 20.x oder neuer
 - npm
 
+## Trainer:in & Datenschutz
+
+In `src/config/site.ts`: Datenschutz-Link (und später E-Mail für automatisches Senden) anpassen.
+
 ## Demo-Modus
 
 In `src/config/app.ts` steuert `DEMO_MODE`:

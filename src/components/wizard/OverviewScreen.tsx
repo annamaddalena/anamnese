@@ -2,19 +2,32 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { PageContainer } from "@/components/layout/PageContainer";
-import { getSectionByIndex, sections } from "@/config/questionnaire";
+import { ReviewSectionsList } from "@/components/review/ReviewSectionsList";
+import { isValidationRequired } from "@/config/app";
+import { siteConfig } from "@/config/site";
+import { getSectionByIndex } from "@/config/questionnaire";
 import { useQuestionnaire } from "@/context/QuestionnaireContext";
-import { getBehaviorOverviewBlocks } from "@/lib/behavior-details";
-import { formatFieldAnswer, formatFieldLabel } from "@/lib/format-answer";
-import { getVisibleFields } from "@/lib/showIf";
+import { getStringAnswer } from "@/lib/answers";
+import { downloadAnamnesePdf } from "@/lib/pdf-download";
+import { buildReviewSections } from "@/lib/review-summary";
+import { validateOverview } from "@/lib/validate-overview";
 import { sectionPath } from "@/lib/wizard-navigation";
 import { ResetQuestionnaireButton } from "./ResetQuestionnaireButton";
 
 export function OverviewScreen() {
   const router = useRouter();
-  const { hydrated, answers, maxStepIndex } = useQuestionnaire();
+  const { hydrated, answers, maxStepIndex, setFieldValue } = useQuestionnaire();
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [pdfLoading, setPdfLoading] = useState(false);
+
+  const reviewSections = useMemo(
+    () => (hydrated ? buildReviewSections(answers) : []),
+    [answers, hydrated],
+  );
+
+  const consentChecked = getStringAnswer(answers, "consent") === "yes";
 
   useEffect(() => {
     if (!hydrated) {
@@ -29,6 +42,26 @@ export function OverviewScreen() {
     }
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, [hydrated, maxStepIndex, router]);
+
+  async function handlePdfDownload() {
+    const nextErrors = validateOverview(answers);
+    setErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) {
+      return;
+    }
+
+    setPdfLoading(true);
+    try {
+      await downloadAnamnesePdf(answers);
+      router.push("/fragebogen/fertig");
+    } catch {
+      setErrors({
+        pdf: "Das PDF konnte nicht erstellt werden. Bitte versuche es erneut.",
+      });
+    } finally {
+      setPdfLoading(false);
+    }
+  }
 
   return (
     <main className="flex flex-1 flex-col">
@@ -46,114 +79,83 @@ export function OverviewScreen() {
           Deine Angaben
         </h1>
         <p className="mt-4 max-w-3xl leading-relaxed text-earth-brown">
-          Prüfe deine Antworten. Einwilligung, PDF und Abschluss folgen im
-          nächsten Schritt.
+          Prüfe deine Antworten. Wenn alles stimmt, bestätige unten die
+          Einwilligung und lade dein PDF herunter.
         </p>
 
         {!hydrated ? (
           <p className="mt-6 text-sm text-earth-brown/70">Wird geladen …</p>
         ) : (
-          <div className="mt-10 space-y-10">
-            {sections.map((section) => {
-              const visible = getVisibleFields(section.fields, answers);
-              const rows = visible
-                .map((field) => {
-                  if (field.type === "behavior_details") {
-                    return null;
-                  }
-                  const value = formatFieldAnswer(field, answers);
-                  if (!value) {
-                    return null;
-                  }
-                  return {
-                    id: field.id,
-                    label: formatFieldLabel(field, answers),
-                    value,
-                  };
-                })
-                .filter(Boolean) as {
-                id: string;
-                label: string;
-                value: string;
-              }[];
-
-              const behaviorBlocks =
-                section.slug === "verhalten"
-                  ? getBehaviorOverviewBlocks(answers)
-                  : [];
-
-              if (rows.length === 0 && behaviorBlocks.length === 0) {
-                return null;
-              }
-
-              return (
-                <section key={section.slug}>
-                  <div className="flex flex-col gap-3 border-b border-warm-cream pb-3 sm:flex-row sm:items-center sm:justify-between">
-                    <h2 className="text-lg font-semibold text-deep-forest">
-                      {section.title}
-                    </h2>
-                    <Link
-                      href={sectionPath(section.slug)}
-                      className="inline-flex shrink-0 text-sm font-medium text-deep-forest underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-deep-forest"
-                    >
-                      Bearbeiten
-                    </Link>
-                  </div>
-                  <dl className="mt-4 space-y-4">
-                    {rows.map((row) => (
-                      <div key={row.id}>
-                        <dt className="text-sm font-medium text-earth-brown">
-                          {row.label}
-                        </dt>
-                        <dd className="mt-1 whitespace-pre-wrap text-sm text-earth-brown/90">
-                          {row.value}
-                        </dd>
-                      </div>
-                    ))}
-                  </dl>
-                  {behaviorBlocks.length > 0 ? (
-                    <div className="mt-6 space-y-6">
-                      {behaviorBlocks.map((block) => (
-                        <div
-                          key={block.title}
-                          className="border-t border-warm-cream pt-4"
-                        >
-                          <h3 className="font-medium text-deep-forest">
-                            {block.title}
-                          </h3>
-                          <dl className="mt-3 space-y-3">
-                            {block.rows.map((row) => (
-                              <div key={row.label}>
-                                <dt className="text-sm text-earth-brown/80">
-                                  {row.label}
-                                </dt>
-                                <dd className="mt-0.5 whitespace-pre-wrap text-sm text-earth-brown/90">
-                                  {row.value}
-                                </dd>
-                              </div>
-                            ))}
-                          </dl>
-                        </div>
-                      ))}
-                    </div>
-                  ) : null}
-                </section>
-              );
-            })}
+          <div className="mt-10">
+            <ReviewSectionsList sections={reviewSections} />
           </div>
         )}
 
-        <div className="mt-8 flex flex-col gap-3 border-t border-warm-cream pt-6 sm:flex-row sm:justify-between">
-          <Link
-            href={sectionPath("training")}
-            className="inline-flex min-h-12 items-center justify-center rounded-xl border border-warm-cream bg-pure-white px-5 text-base font-medium text-earth-brown transition-colors hover:bg-warm-cream/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-deep-forest"
-          >
-            Zurück
-          </Link>
-          <span className="inline-flex min-h-12 items-center text-sm text-earth-brown/70">
-            PDF und Abschluss folgen in Schritt 4
-          </span>
-        </div>
+        {hydrated ? (
+          <div className="mt-10 space-y-6 border-t border-warm-cream pt-8">
+            <div className="space-y-2">
+              <label className="flex cursor-pointer gap-3 rounded-xl border border-warm-cream bg-warm-cream/15 p-4 has-[:checked]:border-deep-forest has-[:checked]:bg-warm-cream/30">
+                <input
+                  type="checkbox"
+                  checked={consentChecked}
+                  onChange={(e) =>
+                    setFieldValue("consent", e.target.checked ? "yes" : "")
+                  }
+                  className="mt-1 h-4 w-4 shrink-0 rounded accent-deep-forest"
+                />
+                <span className="text-sm leading-relaxed text-earth-brown">
+                  Ich bin damit einverstanden, dass meine Angaben zur
+                  Vorbereitung und Durchführung des Trainings gespeichert und
+                  verarbeitet werden.{" "}
+                  <a
+                    href={siteConfig.privacyPolicyUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-medium text-deep-forest underline-offset-2 hover:underline"
+                  >
+                    {siteConfig.privacyPolicyLabel}
+                  </a>
+                  {isValidationRequired(true) ? (
+                    <span className="text-earth-brown/60"> *</span>
+                  ) : null}
+                </span>
+              </label>
+              {errors.consent ? (
+                <p className="text-sm text-error">{errors.consent}</p>
+              ) : null}
+            </div>
+
+            {errors.pdf ? (
+              <p className="text-sm text-error">{errors.pdf}</p>
+            ) : null}
+
+            <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <Link
+                href={sectionPath("training")}
+                className="inline-flex min-h-12 items-center justify-center rounded-xl border border-warm-cream bg-pure-white px-5 text-base font-medium text-earth-brown transition-colors hover:bg-warm-cream/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-deep-forest"
+              >
+                Zurück
+              </Link>
+              <button
+                type="button"
+                onClick={handlePdfDownload}
+                disabled={
+                  pdfLoading ||
+                  (isValidationRequired(true) && !consentChecked)
+                }
+                className="inline-flex min-h-12 items-center justify-center rounded-xl bg-deep-forest px-6 py-3 text-base font-medium text-pure-white shadow-sm transition-colors hover:bg-deep-forest/90 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-deep-forest"
+              >
+                {pdfLoading ? "PDF wird erstellt …" : "PDF herunterladen"}
+              </button>
+            </div>
+            {!isValidationRequired(true) ? null : (
+              <p className="text-xs text-earth-brown/60">
+                Der Download-Button ist aktiv, sobald die Einwilligung
+                angekreuzt ist.
+              </p>
+            )}
+          </div>
+        ) : null}
       </PageContainer>
     </main>
   );
